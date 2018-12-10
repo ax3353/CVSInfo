@@ -1,0 +1,33 @@
+<idea-plugin>
+  <id>org.zk.ip.VcsInfoTreeNodeDecorator</id>
+  <name>CVSInfo</name>
+  <version>1.0</version>
+  <vendor email="247213579@qq.com">zk</vendor>
+
+  <description><![CDATA[
+    Show CVS information behind the file
+    ]]></description>
+
+  <change-notes><![CDATA[
+    ]]>
+  </change-notes>
+
+  <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
+  <idea-version since-build="173.0"/>
+
+  <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+       on how to target different products -->
+  <!-- uncomment to enable plugin in all products
+  <depends>com.intellij.modules.lang</depends>
+  -->
+
+  <extensions defaultExtensionNs="com.intellij">
+    <!-- Add your extensions here -->
+    <projectViewNodeDecorator implementation="org.zk.ip.VcsInfoTreeNodeDecorator" order="last"/>
+  </extensions>
+
+  <actions>
+    <!-- Add your actions here -->
+  </actions>
+
+</idea-plugin>
