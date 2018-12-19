@@ -21,6 +21,9 @@ import com.intellij.util.ObjectUtils;
 import com.intellij.util.text.DateFormatUtil;
 import com.intellij.vcsUtil.VcsUtil;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /**
  * @description:
  * @author: kun.zhu
@@ -28,21 +31,21 @@ import com.intellij.vcsUtil.VcsUtil;
  **/
 public final class VcsInfoTreeNodeDecorator implements ProjectViewNodeDecorator {
 	private static final Logger LOG = Logger.getInstance(VcsInfoTreeNodeDecorator.class);
+	private ExecutorService threadPool = Executors.newFixedThreadPool(10);
 
 	@Override
 	public void decorate(ProjectViewNode node, PresentationData data) {
 		Project project = node.getProject();
 
-		String cvsInfo = this.getCvsInfo(node, project);
-		if (cvsInfo != null) {
-			String parentCvsInfo = this.getCvsInfo(node.getParent(), project);
-			if (!cvsInfo.equals(parentCvsInfo)) {
+		threadPool.submit(() -> {
+			String cvsInfo = this.getCvsInfo(node, project);
+			if (cvsInfo != null) {
 				if (data.getColoredText().isEmpty() && data.getPresentableText() != null) {
 					data.addText(data.getPresentableText(), SimpleTextAttributes.REGULAR_ATTRIBUTES);
+					data.addText(" <" + cvsInfo + ">", SimpleTextAttributes.GRAY_ATTRIBUTES);
 				}
-				data.addText(" <" + cvsInfo + ">", SimpleTextAttributes.GRAY_ATTRIBUTES);
 			}
-		}
+		});
 	}
 
 	private String getCvsInfo(AbstractTreeNode node, Project project) {
