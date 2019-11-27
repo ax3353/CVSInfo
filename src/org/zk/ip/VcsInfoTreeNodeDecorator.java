@@ -1,12 +1,12 @@
 package org.zk.ip;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.intellij.ide.projectView.PresentationData;
 import com.intellij.ide.projectView.ProjectViewNode;
 import com.intellij.ide.projectView.ProjectViewNodeDecorator;
 import com.intellij.ide.projectView.impl.nodes.ClassTreeNode;
 import com.intellij.ide.projectView.impl.nodes.PsiFileNode;
 import com.intellij.ide.util.treeView.AbstractTreeNode;
-import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vcs.AbstractVcs;
 import com.intellij.openapi.vcs.LocalFilePath;
@@ -21,23 +21,23 @@ import com.intellij.util.ObjectUtils;
 import com.intellij.util.text.DateFormatUtil;
 import com.intellij.vcsUtil.VcsUtil;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 /**
- * @description:
  * @author: kun.zhu
  * @create: 2018-12-08 14:30
  **/
 public final class VcsInfoTreeNodeDecorator implements ProjectViewNodeDecorator {
-	private static final Logger LOG = Logger.getInstance(VcsInfoTreeNodeDecorator.class);
-	private ExecutorService threadPool = Executors.newFixedThreadPool(10);
+	private ThreadFactory namedThreadFactory =
+			new ThreadFactoryBuilder().setNameFormat("thread-call-runner-%d").build();
+	private ExecutorService executorService = new ThreadPoolExecutor(5, 30, 0L, TimeUnit.MILLISECONDS,
+			new LinkedBlockingQueue<>(), namedThreadFactory);
 
 	@Override
 	public void decorate(ProjectViewNode node, PresentationData data) {
 		Project project = node.getProject();
 
-		threadPool.submit(() -> {
+		executorService.submit(() -> {
 			String cvsInfo = this.getCvsInfo(node, project);
 			if (cvsInfo != null) {
 				if (data.getColoredText().isEmpty() && data.getPresentableText() != null) {
@@ -50,15 +50,14 @@ public final class VcsInfoTreeNodeDecorator implements ProjectViewNodeDecorator 
 
 	private String getCvsInfo(AbstractTreeNode node, Project project) {
 		VirtualFile file = this.getVirtualFile(node);
-		VcsRevisionDescription description = this.getVscDescrition(file, project);
+		VcsRevisionDescription description = this.getVscDescription(file, project);
 		if (description == null) {
 			return null;
 		}
 
 		String author = description.getAuthor();
 		String revisionDate = DateFormatUtil.formatPrettyDateTime(description.getRevisionDate());
-		String commitMessage = description.getCommitMessage();
-		String revision = description.getRevisionNumber().asString();
+		String revision = description.getRevisionNumber().asString().substring(0, 8);
 		return author + "  " + revisionDate + "  " + revision;
 	}
 
@@ -72,20 +71,22 @@ public final class VcsInfoTreeNodeDecorator implements ProjectViewNodeDecorator 
 		return file;
 	}
 
-	private VcsRevisionDescription getVscDescrition(VirtualFile file, Project project) {
+	private VcsRevisionDescription getVscDescription(VirtualFile file, Project project) {
 		if (file == null) {
 			return null;
 		}
 
-		boolean isUnderVcs = VcsUtil.getVcsFor(project, file).fileIsUnderVcs(new LocalFilePath(file.getPath(), false));
-		if (!isUnderVcs) {
+		boolean isExistsInVcs = ObjectUtils.assertNotNull(VcsUtil.getVcsFor(project, file))
+				.fileExistsInVcs(new LocalFilePath(file.getPath(), false));
+		if (!isExistsInVcs) {
 			return null;
 		}
 
 		AbstractVcs vcs = ChangesUtil.getVcsForFile(file, project);
-		VcsRevisionDescription description = ((DiffMixin) ObjectUtils.assertNotNull((DiffMixin) vcs.getDiffProvider()))
-				.getCurrentRevisionDescription(file);
-		return description;
+		if (vcs == null) {
+			return null;
+		}
+		return ObjectUtils.assertNotNull((DiffMixin) vcs.getDiffProvider()).getCurrentRevisionDescription(file);
 	}
 
 	@Override
