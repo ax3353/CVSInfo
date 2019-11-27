@@ -1,2 +1,2 @@
 # CVSInfo
-Show CVS information behind the file
+Show CVS information
